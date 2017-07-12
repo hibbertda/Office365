@@ -1,39 +1,49 @@
-﻿#region GlobalVariables
+﻿Param (
+	# Setup Service Account Impersonation
+	[parameter(Position=0, Mandatory=$False)][Switch]$SetupServiceAccount = $False,
+    [parameter(Position=1, Mandatory=$False)][Switch]$ConnectToExO = $True
+)
+
+#region GlobalVariables
 # Service account to connect to the service
 $ServiceAccount = "EWSimp@hibblabs.org" ## Need Mailbox ##
+$ServiceAccountPwd = read-host -AsSecureString -Prompt "Password"
+
+$credentials = New-Object System.Management.Automation.PSCredential -ArgumentList $ServiceAccount, $ServiceAccountPwd
 
 # Path to EWS managed API
 $EWS_DLLPath = "C:\Program Files\Microsoft\Exchange\Web Services\2.2\Microsoft.Exchange.WebServices.dll"
-
-# Get service account credentials
-$credentials = Get-Credential
 #endregion
 
 #region ConnectToExchangeOnline
 # Connect to Exchange
-<#
-    A connection to Exchange Online is needed to get a list of all user
-    mailboxes to search.
-#>
-#$EXO_Session = New-PSSession -ConfigurationName Microsoft.Exchange `
-#    -ConnectionUri https://outlook.office365.com/powershell-liveid/ `
-#    -Credential ($credentials) `
-#    -Authentication Basic `
-#    -AllowRedirection `
-#    -ErrorAction Stop
+if ($ConnectToExO){
+    <#
+        A connection to Exchange Online is needed to get a list of all user
+        mailboxes to search.
+    #>
+    $EXO_Session = New-PSSession -ConfigurationName Microsoft.Exchange `
+        -ConnectionUri https://outlook.office365.com/powershell-liveid/ `
+        -Credential $credentials `
+        -Authentication Basic `
+        -AllowRedirection `
+        -ErrorAction Stop
 
-#Import-PSSession $EXO_Session -ErrorAction Stop | Out-Null
-
+    Import-PSSession $EXO_Session -ErrorAction Stop | Out-Null
+}
 #endregion
 
 # Set impresonation
 # MSDN: how to configure impersonation
 # https://msdn.microsoft.com/en-us/library/office/dn722376(v=exchg.150).aspx
 
-#New-ManagementRoleAssignment –name:ImpersonateEWS –Role:ApplicationImpersonation –User:$ServiceAccount
+if ($SetupServiceAccount){
+    $MRA_Impersonation = "ImpersonateEWS"
+    New-ManagementRoleAssignment –name:$MRA_Impersonation –Role:ApplicationImpersonation –User:$ServiceAccount
+}
 
 # Get all mailboxes (exclude DiscoveryMailbox)
-$Mailboxes = Get-mailbox | ? {$_.RecipientTypeDetails -ne "DiscoveryMailbox"}
+$Mailboxes = Get-mailbox | Where-Object {$_.RecipientTypeDetails -ne "DiscoveryMailbox"}
 
 # Import EWS managed API
 if ((test-path -Path $EWS_DLLPath) -eq $False){
@@ -46,13 +56,15 @@ else {Import-Module $EWS_DLLPath}
 $creds = New-Object System.Net.NetworkCredential($credentials.UserName.ToString(),$credentials.GetNetworkCredential().password.ToString())
 
 Measure-Command {
+
+# connect to EWS with service account
 $Service = [Microsoft.Exchange.WebServices.Data.ExchangeService]::new()
 $Service.Credentials = $creds
 $service.AutodiscoverUrl($credentials.UserName.ToString(), {$true})
 
-
 $Mailboxes | Foreach-object {
 
+    # Connect to impersonated user mailbox   
     $service.ImpersonatedUserId = `
         New-Object Microsoft.Exchange.WebServices.Data.ImpersonatedUserId([Microsoft.Exchange.WebServices.Data.ConnectingIdType]::SmtpAddress,$_.PrimarySmtpAddress );
 
@@ -69,15 +81,16 @@ $Mailboxes | Foreach-object {
     $SearchCollection.Add($AttachmentTrueQuery)
     $SearchCollection.add($TimeFrameQuery)
     
-    # Testing Loop
+    # Testing output
     Write-host -ForegroundColor Green "Mailbox: $($_.Name)"
     Write-host -ForegroundColor white "Total Email: $($Inbox.TotalCount)"
     Write-host -ForegroundColor white "Unread Email: $($Inbox.UnreadCount)"
 
+    # Run search
     $ivItemView = New-Object Microsoft.Exchange.WebServices.Data.ItemView -ArgumentList 10 #(100)
-    #$findItemsResults = $Inbox.FindItems($AttachmentTrueQuery,$ivItemView)
     $findItemsResults = $Inbox.FindItems($SearchCollection,$ivItemView)
 
+    # loop through discovered attchements for details
     $RunResult = @()
 
     foreach($miMailItems in $findItemsResults.Items){
@@ -94,7 +107,6 @@ $Mailboxes | Foreach-object {
                 Recivedby = $miMailItems.ReceivedBy
 
             }
-
             $RunResult += $obj
         }
     }
