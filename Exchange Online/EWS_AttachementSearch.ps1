@@ -1,12 +1,15 @@
 ﻿Param (
 	# Setup Service Account Impersonation
-	[parameter(Position=0, Mandatory=$False)][Switch]$SetupServiceAccount = $False,
-    [parameter(Position=1, Mandatory=$False)][Switch]$ConnectToExO = $True
+	[parameter(Position=2, Mandatory=$False)][Switch]$SetupServiceAccount = $False,
+    [parameter(Position=1, Mandatory=$False)][Switch]$ConnectToExO = $True,
+    [parameter(Position=0, Mandatory=$False)][string]$ServiceAccount
 )
 
 #region GlobalVariables
 # Service account to connect to the service
-$ServiceAccount = "EWSimp@hibblabs.org" ## Need Mailbox ##
+if ($ServiceAccount -eq $null){
+    $ServiceAccount = Read-Host -Prompt "Service Account"
+}
 $ServiceAccountPwd = read-host -AsSecureString -Prompt "Password"
 
 $credentials = New-Object System.Management.Automation.PSCredential -ArgumentList $ServiceAccount, $ServiceAccountPwd
@@ -116,4 +119,10 @@ $Mailboxes | Foreach-object {
     Write-Host -ForegroundColor white "Attachements recevind in last 24 hours: $($findItemsResults.TotalCount)"
 
 }
-}
+} #For Measure-Command
+
+#region exportdata
+
+
+
+#endregion
