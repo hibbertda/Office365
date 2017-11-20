@@ -19,7 +19,7 @@ $O365_ActiveUserReport = Import-CSV -path 'C:\Users\HibbertDA\downloads\ActiveUs
 Write-Debug -Message "Processing active users in last 30 days"
 $30ProcessTime = Measure-Command {
     $DateRange = ($CurrentDate.adddays(-29))
-    $ActiveUsers_raw = ($O365_ActiveUserReport | ? {` 
+    $ActiveUsers_raw = ($O365_ActiveUserReport | Where-Object {`
             $_."Last Activity Date For SharePoint" -gt $DateRange `
         -or $_."Last Activity Date For OneDrive" -gt $DateRange `
         -or $_."Last Activity Date For Exchange" -gt $DateRange})
@@ -47,7 +47,6 @@ param (
     $RunResults = @()
 
     $dom = [System.DirectoryServices.ActiveDirectory.Forest]::GetCurrentForest()
-    $root = [ADSI]"GC://$($dom.name)"
 
     $objsearcher = New-Object System.DirectoryServices.DirectorySearcher
     $objsearcher.SearchRoot.distinguishedName = $ADForest
