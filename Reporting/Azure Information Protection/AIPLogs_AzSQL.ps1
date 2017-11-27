@@ -32,7 +32,7 @@ $ConsolidatedLogs = Import-Csv -Path $LogParse_AllLogs
 $Hostname = "hbllogs.database.windows.net"
 $DBName = "AIPLogs"
 $DB_Username = "hibbertda@hbllogs"
-$DB_Password = 'darwin212!'
+$DB_Password = ""
 $con = new-object System.data.sqlclient.SQLconnection
 
 $cstr = "Server=tcp:$Hostname;`
