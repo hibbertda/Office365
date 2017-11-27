@@ -6,21 +6,24 @@ https://docs.microsoft.com/en-us/information-protection/deploy-use/log-analyze-u
 
 Param (
 	#Number of days to collect AIP logs (Default: 1)
-	[parameter(Position=0, Mandatory=$False)][int]$DaysToSearch = 45
+    [parameter(Position=0, Mandatory=$False)][int]$DaysToSearch = 20,
+    [parameter(Position=0, Mandatory=$False)][string]$Logstorage = "C:\Users\Daniel\Desktop\AIP_logs"
 )
 
 #Download Azure Information Protection Logs
-$TempLog_Storage = "C:\Users\Daniel\Desktop\AIP_logs"
+$TempLog_Storage = $Logstorage
 
 #Connect-AadrmService
 Get-AadrmUserLog -Path $TempLog_Storage -FromDate (Get-date).AddDays($($DaysToSearch*-1))
 
 # Import and consolidate logs
-$logpath = "C:\Users\Daniel\Desktop\AIP_logs"
+$logpath = $Logstorage
 $logfiles = Get-ChildItem -Path $logpath -Filter *.log
 
 # Use logparser
-$LogParse_AllLogs = "C:\Users\Daniel\Desktop\AIP_logs\AllLogs.csv"
+$LogParse_AllLogs = $Logstorage+"\AllLogs.csv"
+
+$originalworkingdir = $PWD
 
 cd "C:\Program Files (x86)\Log Parser 2.2"
 .\LogParser.exe –i:w3c –o:csv "SELECT * INTO $LogParse_AllLogs FROM C:\Users\Daniel\Desktop\AIP_logs\*.log"
@@ -87,3 +90,6 @@ $con.Close()
 
 #Cleanup logs
 Get-childitem $TempLog_Storage | Remove-Item -Confirm:$false
+
+# retrun back to original working directory
+cd $originalworkingdir
